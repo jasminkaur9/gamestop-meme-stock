@@ -157,6 +157,95 @@ MEME_STOCK_RETURNS = {
     "NOK": 69,
 }
 
+VOLUME_DATA = {
+    "Jan 4": 7,
+    "Jan 13": 144,
+    "Jan 22": 197,
+    "Jan 25": 175,
+    "Jan 26": 178,
+    "Jan 27": 93,
+    "Jan 28": 58,
+    "Jan 29": 50,
+}
+
+MELVIN_TIMELINE = {
+    "Dec 2020": 12500,
+    "Jan 15": 11000,
+    "Jan 22": 8500,
+    "Jan 28": 5700,
+    "Jan 31": 5700,
+    "May 2022": 0,
+}
+
+# Follow-up question suggestions keyed by detected topic
+FOLLOW_UP_QUESTIONS = {
+    "squeeze": [
+        "How did short interest exceed 100% of the float?",
+        "What role did options (gamma squeeze) play?",
+        "How does transfer entropy explain who moved first?",
+    ],
+    "robinhood": [
+        "What was the DTCC margin call about?",
+        "What is payment for order flow (PFOF)?",
+        "What did the SEC report conclude about the halt?",
+    ],
+    "short": [
+        "Why didn't hedge funds close their shorts earlier?",
+        "What happened to Melvin Capital after January?",
+        "How did failure-to-deliver reports signal trouble?",
+    ],
+    "transfer entropy": [
+        "How did Reddit sentiment lead GME price by 1-4 hours?",
+        "What's the cross-asset TE between GME and AMC?",
+        "Why did correlation fail where TE succeeded?",
+    ],
+    "driver": [
+        "What was the regime change in the DRIVER framework?",
+        "How does the 'E' (Equilibrium Disruption) apply here?",
+        "What was the institutional response ('R')?",
+    ],
+    "reddit": [
+        "How did contagion spread from Reddit to mainstream media?",
+        "What role did DFV play in the WSB movement?",
+        "Did the SEC consider Reddit coordination illegal?",
+    ],
+    "melvin": [
+        "How much did Citadel and Point72 invest to bail out Melvin?",
+        "What happened to other short sellers like Citron?",
+        "Total short-seller losses across all positions?",
+    ],
+    "dfv": [
+        "What was DFV's original thesis on GameStop?",
+        "How did his YOLO updates influence WSB?",
+        "What happened during his congressional testimony?",
+    ],
+    "sec": [
+        "What were the SEC's 5 key findings?",
+        "Did the SEC recommend banning PFOF?",
+        "How does DRIVER framework map to the SEC conclusions?",
+    ],
+    "contagion": [
+        "Which meme stocks were hit hardest by contagion?",
+        "What does transfer entropy show about GME leading AMC?",
+        "How fast did contagion spread across asset classes?",
+    ],
+    "correlation": [
+        "Why did GME-AMC correlation spike to 0.85+?",
+        "How does transfer entropy differ from correlation?",
+        "What assumptions did quant models get wrong?",
+    ],
+    "elon": [
+        "How much did GME move after the 'Gamestonk' tweet?",
+        "What other social media events moved the stock?",
+        "How does this relate to information transfer entropy?",
+    ],
+    "default": [
+        "How does the DRIVER framework apply to GameStop?",
+        "What did the SEC report actually conclude?",
+        "Why did traditional risk models fail to predict this?",
+    ],
+}
+
 
 # ---------------------------------------------------------------------------
 # CSS Animations
@@ -465,7 +554,52 @@ section[data-testid="stSidebar"] button:hover {
     font-family: monospace;
     margin-top: 2px;
 }
+
+/* ── 12. Follow-up question chips ── */
+.followup-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+    margin-bottom: 8px;
+    animation: fade-in 0.6s ease-out;
+}
+.followup-label {
+    font-size: 0.75rem;
+    color: #888;
+    width: 100%;
+    margin-bottom: 2px;
+}
+
+/* ── 13. Inline chart card in answers ── */
+.chart-card {
+    background: rgba(15, 52, 96, 0.3);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    border-radius: 10px;
+    padding: 8px;
+    margin: 8px 0;
+    animation: fade-in 0.5s ease-out;
+}
+.chart-card-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #00E676;
+    margin-bottom: 4px;
+}
 </style>
+
+<!-- Tab-to-focus: pressing Tab focuses the chat input -->
+<script>
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+        const chatInput = document.querySelector('textarea[data-testid="stChatInputTextArea"]');
+        if (chatInput && document.activeElement !== chatInput) {
+            e.preventDefault();
+            chatInput.focus();
+        }
+    }
+});
+</script>
 """
 
 FLOATING_SYMBOLS_HTML = """
@@ -522,6 +656,134 @@ def load_lottie_url(url: str) -> dict | None:
 def get_timestamp() -> str:
     """Return a formatted timestamp for the audit trail."""
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def detect_topic(text: str) -> str:
+    """Detect the main topic from a question/answer for follow-ups and charts."""
+    text_lower = text.lower()
+    topic_keywords = {
+        "robinhood": ["robinhood", "halt", "buy button", "dtcc", "margin call"],
+        "squeeze": ["squeeze", "483", "peak", "january 2021", "what happened"],
+        "short": ["short interest", "short sell", "140%", "float"],
+        "transfer entropy": ["transfer entropy", "te(", "information flow"],
+        "driver": ["driver", "framework", "regime"],
+        "reddit": ["reddit", "wsb", "wallstreetbets", "subreddit"],
+        "melvin": ["melvin", "plotkin", "6.8", "bail"],
+        "dfv": ["dfv", "deepfuckingvalue", "roaring kitty", "keith gill"],
+        "sec": ["sec report", "sec ", "congressional", "hearing"],
+        "contagion": ["contagion", "amc", "meme stock", "spread"],
+        "correlation": ["correlation", "risk model", "quant", "var "],
+        "elon": ["elon", "musk", "gamestonk", "tweet"],
+    }
+    for topic, keywords in topic_keywords.items():
+        if any(kw in text_lower for kw in keywords):
+            return topic
+    return "default"
+
+
+def get_follow_up_questions(topic: str) -> list[str]:
+    """Return follow-up questions for a detected topic."""
+    return FOLLOW_UP_QUESTIONS.get(topic, FOLLOW_UP_QUESTIONS["default"])
+
+
+def render_inline_charts(topic: str):
+    """Show relevant charts/visuals inline after an answer based on topic."""
+    import pandas as pd
+
+    charts_shown = False
+
+    if topic in ("squeeze", "short", "default"):
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 🚀 GME Price Action")
+            price_df = pd.DataFrame(
+                list(GME_PRICE_TIMELINE.items()), columns=["Date", "Price ($)"]
+            ).set_index("Date")
+            st.line_chart(price_df, color="#00E676", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
+        charts_shown = True
+
+    if topic in ("squeeze", "robinhood"):
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 📊 Trading Volume (M shares)")
+            vol_df = pd.DataFrame(
+                list(VOLUME_DATA.items()), columns=["Date", "Volume (M)"]
+            ).set_index("Date")
+            st.bar_chart(vol_df, color="#FFD93D", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
+        charts_shown = True
+
+    if topic in ("short", "correlation"):
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 📉 Short Interest Over Time (% of Float)")
+            si_df = pd.DataFrame(
+                list(SHORT_INTEREST_DATA.items()), columns=["Period", "SI (%)"]
+            ).set_index("Period")
+            st.bar_chart(si_df, color="#FF6B6B", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
+        charts_shown = True
+
+    if topic in ("contagion", "reddit"):
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 🦍 Meme Stock January 2021 Returns (%)")
+            meme_df = pd.DataFrame(
+                list(MEME_STOCK_RETURNS.items()), columns=["Ticker", "Return (%)"]
+            ).set_index("Ticker")
+            st.bar_chart(meme_df, color="#4FC3F7", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
+        charts_shown = True
+
+    if topic == "melvin":
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 💀 Melvin Capital AUM ($M)")
+            melvin_df = pd.DataFrame(
+                list(MELVIN_TIMELINE.items()), columns=["Date", "AUM ($M)"]
+            ).set_index("Date")
+            st.line_chart(melvin_df, color="#FF6B6B", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
+        charts_shown = True
+
+    if topic in ("transfer entropy", "elon"):
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 🚀 GME Price — The Elon Tweet Effect")
+            price_df = pd.DataFrame(
+                list(GME_PRICE_TIMELINE.items()), columns=["Date", "Price ($)"]
+            ).set_index("Date")
+            st.line_chart(price_df, color="#00E676", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
+        charts_shown = True
+
+    if topic == "driver":
+        # Show a visual DRIVER breakdown
+        st.markdown(
+            '<div class="chart-card">'
+            "<strong>DRIVER Framework Breakdown</strong><br><br>"
+            "📊 <strong>D</strong>ata — Price, volume, Reddit sentiment, PFOF<br>"
+            "🔄 <strong>R</strong>egime — Pre-squeeze → Squeeze → Post-squeeze<br>"
+            "🔗 <strong>I</strong>nfo Transfer — TE(Reddit→GME) >> TE(GME→Reddit)<br>"
+            "📈 <strong>V</strong>olatility — 800%+ annualized realized vol<br>"
+            "💥 <strong>E</strong>quilibrium — 140% SI = unstable, Reddit broke Nash eq<br>"
+            "🏛️ <strong>R</strong>esponse — Robinhood halt, DTCC, SEC, Congress<br>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        charts_shown = True
+
+    if not charts_shown:
+        # Default: show the price chart
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 🚀 GME Price Action")
+            price_df = pd.DataFrame(
+                list(GME_PRICE_TIMELINE.items()), columns=["Date", "Price ($)"]
+            ).set_index("Date")
+            st.line_chart(price_df, color="#00E676", height=200)
+            st.markdown("</div>", unsafe_allow_html=True)
 
 
 # ---------------------------------------------------------------------------
@@ -831,9 +1093,26 @@ def main():
             response_ts = get_timestamp()
             st.caption(f"🕐 {response_ts}")
 
+            # Inline charts relevant to the answer
+            topic = detect_topic(prompt + " " + (response if isinstance(response, str) else ""))
+            render_inline_charts(topic)
+
         st.session_state.messages.append(
             {"role": "assistant", "content": response, "timestamp": response_ts}
         )
+
+        # Follow-up question suggestions
+        follow_ups = get_follow_up_questions(topic)
+        st.markdown(
+            '<div class="followup-label">💡 Want to keep going? Try one of these:</div>',
+            unsafe_allow_html=True,
+        )
+        fu_cols = st.columns(len(follow_ups))
+        for i, (col, fq) in enumerate(zip(fu_cols, follow_ups)):
+            with col:
+                if st.button(f"{'🔍📊🎯'[i]} {fq}", key=f"fu_{hash(fq)}", use_container_width=True):
+                    st.session_state["prefill_question"] = fq
+                    st.rerun()
 
 
 if __name__ == "__main__":

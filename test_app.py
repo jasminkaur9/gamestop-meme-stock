@@ -144,3 +144,35 @@ def test_meme_stock_returns():
     assert "GME" in app.MEME_STOCK_RETURNS
     assert "AMC" in app.MEME_STOCK_RETURNS
     assert app.MEME_STOCK_RETURNS["GME"] > app.MEME_STOCK_RETURNS["AMC"]
+
+
+def test_volume_data():
+    assert len(app.VOLUME_DATA) >= 5
+    for date, vol in app.VOLUME_DATA.items():
+        assert isinstance(vol, (int, float))
+        assert vol > 0
+
+
+def test_follow_up_questions():
+    assert "default" in app.FOLLOW_UP_QUESTIONS
+    for topic, questions in app.FOLLOW_UP_QUESTIONS.items():
+        assert isinstance(questions, list)
+        assert len(questions) >= 2
+        for q in questions:
+            assert isinstance(q, str)
+            assert q.endswith("?")
+
+
+def test_detect_topic():
+    assert app.detect_topic("What about Robinhood halting?") == "robinhood"
+    assert app.detect_topic("Tell me about the short squeeze") == "squeeze"
+    assert app.detect_topic("How does DRIVER framework apply?") == "driver"
+    assert app.detect_topic("What is transfer entropy?") == "transfer entropy"
+    assert app.detect_topic("random unrelated stuff") == "default"
+
+
+def test_get_follow_up_questions():
+    fqs = app.get_follow_up_questions("robinhood")
+    assert len(fqs) >= 2
+    fqs_default = app.get_follow_up_questions("nonexistent_topic")
+    assert fqs_default == app.FOLLOW_UP_QUESTIONS["default"]
