@@ -1101,17 +1101,23 @@ def main():
             {"role": "assistant", "content": response, "timestamp": response_ts}
         )
 
-        # Follow-up question suggestions
-        follow_ups = get_follow_up_questions(topic)
+        # Store follow-ups in session state so they persist across reruns
+        st.session_state["last_follow_ups"] = get_follow_up_questions(topic)
+
+    # Follow-up question suggestions — rendered OUTSIDE the if-prompt block
+    if st.session_state.get("last_follow_ups"):
+        follow_ups = st.session_state["last_follow_ups"]
         st.markdown(
             '<div class="followup-label">💡 Want to keep going? Try one of these:</div>',
             unsafe_allow_html=True,
         )
         fu_cols = st.columns(len(follow_ups))
+        fu_icons = ["🔍", "📊", "🎯"]
         for i, (col, fq) in enumerate(zip(fu_cols, follow_ups)):
             with col:
-                if st.button(f"{'🔍📊🎯'[i]} {fq}", key=f"fu_{hash(fq)}", use_container_width=True):
+                if st.button(f"{fu_icons[i]} {fq}", key=f"fu_{i}", use_container_width=True):
                     st.session_state["prefill_question"] = fq
+                    st.session_state.pop("last_follow_ups", None)
                     st.rerun()
 
 
