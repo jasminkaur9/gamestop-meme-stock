@@ -785,6 +785,16 @@ def render_inline_charts(topic: str):
             st.line_chart(price_df, color="#00E676", height=200)
             st.markdown("</div>", unsafe_allow_html=True)
 
+    # Show relevant animated explainer GIF
+    anim_files = TOPIC_ANIMATIONS.get(topic, TOPIC_ANIMATIONS["default"])
+    gif_path = ASSETS_PATH / anim_files[0]
+    if gif_path.exists():
+        with st.container():
+            st.markdown('<div class="chart-card">', unsafe_allow_html=True)
+            st.markdown("##### 🎬 Animated Explainer")
+            st.image(str(gif_path), use_container_width=True)
+            st.markdown("</div>", unsafe_allow_html=True)
+
 
 # ---------------------------------------------------------------------------
 # Sidebar
@@ -853,6 +863,38 @@ def render_sidebar(case_content: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
+ASSETS_PATH = Path(__file__).parent / "assets"
+
+# Map animation filenames to display info
+ANIMATED_EXPLAINERS = [
+    {
+        "file": "gme_squeeze.gif",
+        "title": "🚀 The Squeeze — $17 to $483",
+        "caption": "Watch GME rocket from $17.25 to $483 in 24 days, with key events annotated.",
+    },
+    {
+        "file": "volume_explosion.gif",
+        "title": "📊 Volume Explosion",
+        "caption": "Trading volume went from 7M (normal) to 197M shares in days.",
+    },
+    {
+        "file": "short_interest_meltdown.gif",
+        "title": "📉 Short Interest Meltdown",
+        "caption": "Short interest collapsed from 140% to 28% as hedge funds scrambled to cover.",
+    },
+    {
+        "file": "contagion_cascade.gif",
+        "title": "🦍 Meme Stock Contagion",
+        "caption": "GME led the charge. AMC, KOSS, BB, BBBY, NOK followed. Contagion in action.",
+    },
+    {
+        "file": "info_flow.gif",
+        "title": "🔗 Information Flow — Transfer Entropy",
+        "caption": "Reddit → Twitter → Media → Price. Transfer entropy proves the causal direction.",
+    },
+]
+
+
 def render_data_charts():
     """Render expandable data visualization section."""
     with st.expander("📊 The Numbers — Interactive Charts"):
@@ -878,6 +920,36 @@ def render_data_charts():
         )
         meme_df = meme_df.set_index("Ticker")
         st.bar_chart(meme_df, color="#4FC3F7")
+
+
+def render_animated_explainers():
+    """Render the animated GIF explainer videos section."""
+    with st.expander("🎬 Animated Explainers — The Story in Motion (no sound needed)"):
+        for info in ANIMATED_EXPLAINERS:
+            gif_path = ASSETS_PATH / info["file"]
+            if gif_path.exists():
+                st.markdown(f"#### {info['title']}")
+                st.image(str(gif_path), use_container_width=True)
+                st.caption(info["caption"])
+                st.markdown('<hr class="glow-divider">', unsafe_allow_html=True)
+
+
+# Map topics to relevant animation files for inline display
+TOPIC_ANIMATIONS = {
+    "squeeze": ["gme_squeeze.gif", "volume_explosion.gif"],
+    "robinhood": ["gme_squeeze.gif", "volume_explosion.gif"],
+    "short": ["short_interest_meltdown.gif", "gme_squeeze.gif"],
+    "transfer entropy": ["info_flow.gif"],
+    "driver": ["info_flow.gif", "gme_squeeze.gif"],
+    "reddit": ["info_flow.gif", "contagion_cascade.gif"],
+    "melvin": ["short_interest_meltdown.gif"],
+    "dfv": ["gme_squeeze.gif"],
+    "sec": ["gme_squeeze.gif", "short_interest_meltdown.gif"],
+    "contagion": ["contagion_cascade.gif", "info_flow.gif"],
+    "correlation": ["info_flow.gif", "contagion_cascade.gif"],
+    "elon": ["gme_squeeze.gif", "volume_explosion.gif"],
+    "default": ["gme_squeeze.gif"],
+}
 
 
 # ---------------------------------------------------------------------------
@@ -957,6 +1029,9 @@ def main():
 
     # ── Data Charts Section ──
     render_data_charts()
+
+    # ── Animated Explainers Section ──
+    render_animated_explainers()
 
     # Glowing divider
     st.markdown('<hr class="glow-divider">', unsafe_allow_html=True)
